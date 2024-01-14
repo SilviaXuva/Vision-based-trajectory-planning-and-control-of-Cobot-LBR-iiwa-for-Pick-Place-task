@@ -1,0 +1,139 @@
+{
+    "Motion": {
+        "ts": 0.05, //sec
+        "tTot": 1.5, //sec
+        "Kp": [
+            1.64725, 
+            1.40056, 
+            1.40056, 
+            1.33690, 
+            1.36873, 
+            1.40056, 
+            1.36873
+        ],
+        "Ki": [
+            1.23544, 
+            0.93371, 
+            0.93371, 
+            0.89127, 
+            0.91249, 
+            0.93371, 
+            0.91249
+        ],       
+        "tol": [
+            0.2, 0.2, 0.2, // cm
+            2, 2, 2 // deg
+        ], //each cart/end-effector measure (x, y, z, rx, ry, rz)
+        "Trajectory": {
+            "type": "joint", //joint or cart
+            "source": "custom" //rtb or custom
+        },
+        "controller": "joint" //joint or cart
+    },
+    "Camera": {
+        "sensorPath": "./camera1", //coppelia path/name
+        "distortionCoefficients": null, //ideal camera so distortion is null
+        "FrameRotation": { //solve pnp algorithm
+            "roll": 0, //deg
+            "pitch": 0, //deg
+            "yaw": 180 //deg
+        }
+    },
+    "Aruco":{
+        "dict": "DICT_6X6_250", //aruco dict options
+        "length": 0.05, //marker length in scene
+        "estimatedRpy": false,
+        "saveData": true
+    },
+    "Gripper":{
+        "Rotation": {
+            "roll": 180, //deg
+            "pitch": 0, //deg
+            "yaw": 0 //deg
+        },
+        "increaseHeight": 0.15, //increase height to avoid crashs with another cuboid
+        "Proximity": {
+            "tol": 0.02,
+            "JointsTol": {
+                "first": 0.005,
+                "second": 0.005
+            }
+        },
+        "Actuation": {
+            "time": 1, //sec
+            "Close": {
+                "FirstLowerSecond": {
+                    "decreaseSecond": 0.008,
+                    "vel1": -0.1,
+                    "vel2": -0.4
+                },
+                "Other": {
+                    "vel1": -0.4,
+                    "vel2": -0.4
+                }
+            },
+            "Open": {
+                "FirstLowerSecond": {
+                    "vel1": 0.4,
+                    "vel2": 0.2
+                },
+                "Other": {
+                    "vel1": 0.2,
+                    "vel2": 0.4
+                }
+            }
+        }
+    },
+    "Drawing":{
+        "ref": [0, 0, 1], //blue
+        "real": [1, 0, 0], //red
+        "cyclic": 500
+    }, 
+    "Conveyor": {
+        "path": "./conveyor", //coppelia path/name
+        "tol": 0.0001,
+        "vel": 0.01
+    },
+    "Cuboids": {
+        "path": "./ref_cuboid", //coppelia path/name
+        "bodyPath": "./ref_body", //coppelia path/name
+        "markerPath": "./ref_marker{id}", //coppelia path/name and holder {id} to help creation by id
+        "colors": {
+            "red": [1,0,0],
+            "green": [0,1,0], 
+            "blue": [0,0,1]
+        }, 
+        "ToHandle": {
+            "z": 0.225,
+            "tol": 0.01
+        },
+        "Create":{
+            "max": 5, //maximum cuboid to create
+            "x": 0.95,
+            "z": 0.225,
+            "rx": 0,
+            "ry": 0,
+            "Random":{
+                "id": {
+                    "min": 1,
+                    "max": 10
+                },
+                "y": {
+                    "min": -0.2,
+                    "max": 0.2
+                },
+                "rz": {
+                    "min": -180,
+                    "max": 180
+                },
+                "mass": {
+                    "min": 0.125,
+                    "max": 7
+                }
+            }
+        }
+    },
+    "ProximitySensor": {
+        "path": "./proximitySensor" //coppelia path/name
+    }
+}
