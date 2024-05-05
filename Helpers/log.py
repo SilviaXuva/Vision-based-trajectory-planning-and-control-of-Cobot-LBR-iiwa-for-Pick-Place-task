@@ -4,15 +4,12 @@ import numpy as np
 import os
 import sys
 # import PySimpleGUI as sg # py -m pip install PySimpleGUI
-
-class Paths:
-    output = os.path.abspath(r'.\Outputs')
-    execution = fr'{output}\{datetime.now().strftime("%Y-%m-%d_%Hh%Mm%Ss")}'
-    os.makedirs(execution, exist_ok=True)
+from Helpers.paths import Paths
 
 class Logger(object):
     def __init__(self, file):
         self.terminal = sys.stdout
+        os.makedirs(os.path.dirname(file), exist_ok=True)
         self.file = open(file, 'w', encoding = 'utf-8')
    
     def __call__(self, *message):

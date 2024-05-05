@@ -1,15 +1,24 @@
+import numpy as np
+from Helpers.paths import Paths
+import os
+currentFile = os.path.splitext(os.path.basename(__file__))[0]
+Paths.execution = fr'{Paths.output}\{currentFile}\{Paths.startTime}'
+os.makedirs(Paths.execution, exist_ok=True)
+from Helpers.log import Log
 from Data.targets import GetArucoPickPlace
 from Data.transformations import PoseToCart, GetDot
-from Models import DH_LBR_iiwa
-from Helpers.measures import Real, Ref
+from Helpers.cleanup import CleanUp
 from Helpers.input import Motion
-from Helpers.log import Log, Paths
-from Helpers.Analysis.plotRobot import plotOutputs
+from Helpers.measures import Real, Ref
 from Kinematics.control import JointSpaceController, IsCloseToTarget
 from Kinematics.trajectory import TrajectoryPlanning
+from Models import DH_LBR_iiwa
 from Simulators import CoppeliaSim
 from Simulators.CoppeliaSim import Drawing, RobotiqGripper, Cuboids
+
 from Data.openLoop import red, blue, green
+
+deg = np.pi/180; rad = 180/np.pi
 
 robot = DH_LBR_iiwa()
 coppelia = CoppeliaSim(scene='1.test_openLoop.ttt')
@@ -26,7 +35,7 @@ while coppelia.Cuboids.CheckToHandle():
         pickPlace = GetArucoPickPlace(robot, marker, count); count += 1
         align, pick, place, ready, initial = pickPlace
         for i, target in enumerate(pickPlace[:4]):
-            Log(f'Target {target.name}', target.T.t, target.T.rpy())
+            Log(f'Target {target.name}', 'Position in m', target.T.t, 'Rotation in deg', target.T.rpy()*rad)
             if i > 0 and not pickPlace[i-1].success:
                 target = ready
 
@@ -55,21 +64,21 @@ while coppelia.Cuboids.CheckToHandle():
                     Real(qControl, qDotControl, None, PoseToCart(robot.fkine(qControl)), None, None),
                     Ref(qRef, None, None, xRef, None, None)
                 ])
-                target.SaveData(robot)
+                
                 coppelia.SetJointsTargetVelocity(robot, qDotControl); coppelia.Step(xRef[:3])
 
-                isCloseToTarget, e = IsCloseToTarget(robot.fkine(qControl), target.T, Motion.tol)
-                if target.GripperActuation.close: 
-                    prox, value = coppelia.Gripper.CheckProximity(target.GripperActuation)
+                # isCloseToTarget, e = IsCloseToTarget(robot.fkine(qControl), target.T, Motion.tol)
+                if target == pick: 
+                    prox, _ = coppelia.Gripper.CheckProximity(target.GripperActuation)
                 else:
-                    prox = isCloseToTarget
-                    value = 0
-                if isCloseToTarget or prox:
+                    prox = False
+                if prox:
                     break
 
             coppelia.SetJointsTargetVelocity(robot, [0,0,0,0,0,0,0]); coppelia.Step(xRef[:3])
             target.success = coppelia.Gripper.HandleShape(target.GripperActuation, coppelia)
-
+            target.SaveData(robot)
+            
 coppelia.Stop()
 
-plotOutputs(Paths.execution)
+CleanUp()

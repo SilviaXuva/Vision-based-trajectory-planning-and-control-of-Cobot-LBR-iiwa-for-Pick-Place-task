@@ -8,6 +8,7 @@ from VisionProcessing.aruco import Marker
 
 import numpy as np
 import os
+import glob
 import pandas as pd
 from roboticstoolbox import DHRobot, ERobot
 from spatialmath import SE3
@@ -21,22 +22,16 @@ class Target():
             T: SE3, 
             GripperActuation: Actuation, 
             tTot: np.ndarray, 
-            # trajectoryType: str, trajectorySource: str, 
-            # controller: str, Kp: np.ndarray, Ki: np.ndarray,
-            # tol: np.ndarray,
             success: bool = None
         ):
         self.name = name
         self.T = T
         self.GripperActuation = GripperActuation
         self.t = np.arange(0, tTot + Motion.ts, Motion.ts)
-        # self.trajectoryType = trajectoryType; self.trajectorySource = trajectorySource
-        # self.controller = controller; self.Kp = Kp, self.Ki = Ki
-        # self.tol = tol
         self.intErr = 0
         self.measures = []
         self.success = success
-        path = fr'{Paths.execution}\Motion\{name}'; 
+        path = fr'{Paths.execution}\Motion\{name}'
         self.cartPath = fr'{path}\Cart Comparison\Data'
         self.jointPath = fr'{path}\Joint Comparison\Data'
         os.makedirs(self.cartPath, exist_ok=True); os.makedirs(self.jointPath, exist_ok=True) 
@@ -106,7 +101,7 @@ def GetArucoPickPlace(robot: DHRobot|ERobot, marker: Marker, count: int):
     #     rotation = SE3.RPY(180*deg, 0, 0)
     rotation = Gripper.rotation
 
-    prefix = f'{count}.{marker.color}{marker.id}_{marker.mass}'
+    prefix = f'{count}.{marker.color}{marker.id}_{float("{:.3f}".format(marker.mass))}'
     pickPlace = [
         Target(
             name = fr'{prefix}\1.Align',
@@ -118,9 +113,6 @@ def GetArucoPickPlace(robot: DHRobot|ERobot, marker: Marker, count: int):
             )*rotation,
             GripperActuation = Actuation(),
             tTot = Motion.tTot,
-            # trajectoryType = Motion.Trajectory.type, trajectorySource = Motion.Trajectory.source,
-            # controller = Motion.controller, Kp = Motion.Kp,
-            # tol = Motion.tol
         ),
         Target(
             name = fr'{prefix}\2.Pick',
@@ -135,9 +127,6 @@ def GetArucoPickPlace(robot: DHRobot|ERobot, marker: Marker, count: int):
                 shapePath = f'./{marker.color}{marker.id}'
             ),
             tTot = Motion.tTot,
-            # trajectoryType = Motion.Trajectory.type, trajectorySource = Motion.Trajectory.source,
-            # controller = Motion.controller, Kp = Motion.Kp,
-            # tol = Motion.tol
         ),
         Target(
             name = fr'{prefix}\3.Place',
@@ -147,27 +136,18 @@ def GetArucoPickPlace(robot: DHRobot|ERobot, marker: Marker, count: int):
                 shapePath = f'./{marker.color}{marker.id}'
             ),
             tTot = Motion.tTot,
-            # trajectoryType = Motion.Trajectory.type, trajectorySource = Motion.Trajectory.source,
-            # controller = Motion.controller, Kp = Motion.Kp,
-            # tol = Motion.tol
         ),
         Target(
             name = fr'{prefix}\4.Ready',
             T = robot.Tr,
             GripperActuation = Actuation(),
             tTot = Motion.tTot,
-            # trajectoryType = Motion.Trajectory.type, trajectorySource = Motion.Trajectory.source,
-            # controller = Motion.controller, Kp = Motion.Kp,
-            # tol = Motion.tol
         ),
         Target(
             name = fr'{prefix}\5.Initial',
             T = robot.Tz,
             GripperActuation = Actuation(),
             tTot = Motion.tTot,
-            # trajectoryType = Motion.Trajectory.type, trajectorySource = Motion.Trajectory.source,
-            # controller = Motion.controller, Kp = Motion.Kp,
-            # tol = Motion.tol
         )
     ]
     return pickPlace

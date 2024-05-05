@@ -1,12 +1,17 @@
 import numpy as np
-deg = np.pi/180
+deg = np.pi/180; rad = 180/np.pi
+
+from Helpers.paths import Paths
+import os
+Paths.execution = fr'{Paths.output}\{os.path.splitext(os.path.basename(__file__))[0]}\{os.path.splitext(os.path.basename(Paths.execution))[0]}'
+os.makedirs(Paths.execution, exist_ok=True)
+from Helpers.log import Log
 
 from Data.targets import GetArucoPickPlace
 from Data.transformations import PoseToCart, GetDot
 from Models import DH_LBR_iiwa
 from Helpers.measures import Real, Ref
-from Helpers.input import Motion, Cuboids as Cb, Aruco
-from Helpers.log import Log
+from Helpers.input import Motion, Cuboids as Cb, Aruco, Gripper, Conveyor as Conv
 from Helpers.Analysis.plotRobot import plotOutputs as plotOutputsRobot
 from Helpers.Analysis.plotVision import plotOutputs as plotOutputsVision
 from Kinematics.control import JointSpaceController, IsCloseToTarget
@@ -14,6 +19,33 @@ from Kinematics.trajectory import TrajectoryPlanning
 from Simulators import CoppeliaSim
 from Simulators.CoppeliaSim import Drawing, RobotiqGripper, Camera, Conveyor, Cuboids
 from VisionProcessing.aruco import ArucoVision
+
+from Data.pose import Pose
+from spatialmath import SE3
+
+Cb.colors = {
+    # "red1": [0.54,0,0],
+    # "green1": [0,0.28,0], 
+    # "blue1": [0.19,0,1],
+    "red2": [1,0.7,0.7],
+    "green2": [0.65,1,0], 
+    "blue2": [0,0.84,1],    
+}
+Cb.Create.max = 3
+Cb.Create.x = 0.8
+# Cb.Create.Random.id.min = 1
+# Cb.Create.Random.id.max = 10
+# Cb.Create.Random.y.min = -0.2
+# Cb.Create.Random.y.max = -0.2
+# Cb.Create.Random.rz.min = 0
+# Cb.Create.Random.rz.max = 10
+# Cb.Create.Random.mass.min = 0.125
+# Cb.Create.Random.mass.max = 0.125
+
+# Conv.vel = 0.01
+# Gripper.increaseHeight = 0.15
+# Aruco.estimatedRpy = False
+gripperRotation = False
 
 robot = DH_LBR_iiwa()
 coppelia = CoppeliaSim(scene='3.test_onlyRandom.ttt')
@@ -24,23 +56,11 @@ coppelia.ArucoVision = ArucoVision(coppelia.Camera)
 coppelia.Conveyor = Conveyor()
 coppelia.Cuboids = Cuboids()
 
-Aruco.estimatedRpy = True
-
 robot = coppelia.Start(robot)
 count = 0
 coppelia.Step()
-stop = False
-obj = 'green0'
-rx = 0; ry = 0; rz = 60*deg
 
 while coppelia.Cuboids.CheckToHandle():
-    # try:
-    #     handle = coppelia.sim.getObject(f'./{obj}')
-    #     coppelia.sim.setObjectOrientation(handle, -1, [rx, ry, rz])
-    #     coppelia.sim.step()
-    #     coppelia.Step()
-    # except:
-    #     pass
     if len(coppelia.ArucoVision.detected) == 0:
         coppelia.Step()
     else:
@@ -50,7 +70,40 @@ while coppelia.Cuboids.CheckToHandle():
             pickPlace = GetArucoPickPlace(robot, marker, count)
             align, pick, place, ready, initial = pickPlace
             for i, target in enumerate(pickPlace[:4]):
-                Log(f'Target {target.name}', target.T.t, target.T.rpy())
+                if gripperRotation:
+                    rot = target.T.rpy()[-1]*rad
+                    if rot <= -135:
+                        rotation = SE3.RPY(180*deg, 0, 0)
+                    elif rot > -135 and rot <= -90:
+                        rotation = SE3.RPY(180*deg, 0, -90*deg)
+                    elif rot > -90 and rot <= -45:
+                        rotation = SE3.RPY(180*deg, 0, 90*deg)
+                    elif rot > -45 and rot < 0:
+                        rotation = SE3.RPY(180*deg, 0, 180*deg)
+                    elif rot >= 0 and rot < 45:
+                        rotation = SE3.RPY(180*deg, 0, 0)
+                    elif rot >= 45 and rot < 90:
+                        rotation = SE3.RPY(180*deg, 0, 90*deg)
+                    elif rot >= 90 and rot < 135:
+                        rotation = SE3.RPY(180*deg, 0, -90*deg)
+                    elif rot >= 135:
+                        rotation = SE3.RPY(180*deg, 0, 0)                
+                    if target == align:
+                        target.T = Pose(
+                            x = target.T.t[0],
+                            y = target.T.t[1], 
+                            z = target.T.t[2], 
+                            rpy = marker.T.rpy()
+                        )*rotation
+                    elif target == pick:
+                        target.T = Pose(
+                            x = target.T.t[0],
+                            y = target.T.t[1], 
+                            z = target.T.t[2], 
+                            rpy = marker.T.rpy()
+                        )*rotation
+
+                Log(f'Target {target.name}', 'Position in m', target.T.t, 'Rotation in deg', target.T.rpy()*rad)
                 if i > 0 and not pickPlace[i-1].success:
                     target = ready
 
@@ -92,8 +145,23 @@ while coppelia.Cuboids.CheckToHandle():
 
                 coppelia.SetJointsTargetVelocity(robot, [0,0,0,0,0,0,0]); coppelia.Step(xRef[:3])
                 target.success = coppelia.Gripper.HandleShape(target.GripperActuation, coppelia)
+        else:
+            coppelia.Step()
 
 coppelia.Stop()
 
 # plotOutputsRobot(Paths.execution)
 # plotOutputsVision(Paths.execution)
+
+# import time
+# import glob
+# import shutil
+# import os
+# time.sleep(5)
+# try:
+#     recordingFile = glob.glob(r'*.avi')[0]
+#     shutil.move(recordingFile, fr'{Paths.execution}\recording.avi')
+# except Exception as e:
+#     print(e)
+# os.makedirs(fr'{Paths.output}\{os.path.splitext(os.path.basename(__file__))[0]}', exist_ok=True)
+# shutil.copytree(Paths.execution, fr'{Paths.output}\{os.path.splitext(os.path.basename(__file__))[0]}\{os.path.splitext(os.path.basename(Paths.execution))[0]}')
